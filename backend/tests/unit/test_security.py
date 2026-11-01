@@ -1,11 +1,10 @@
-import pytest
 from app.core.security import get_password_hash, verify_password, create_access_token, decode_access_token
 from app.core.roles import AppRole, normalize_role, role_matches
 
 def test_password_hashing_and_verification():
     raw_password = "KietSecurePassword2026!"
     hashed = get_password_hash(raw_password)
-    
+
     assert hashed != raw_password
     assert "$argon2" in hashed
     assert verify_password(raw_password, hashed) is True
@@ -15,10 +14,10 @@ def test_jwt_token_creation_and_decoding():
     user_id = "test_student_123"
     role = "STUDENT"
     token = create_access_token(subject=user_id, role=role)
-    
+
     assert isinstance(token, str)
     assert len(token) > 20
-    
+
     payload = decode_access_token(token)
     assert payload is not None
     assert payload["sub"] == user_id

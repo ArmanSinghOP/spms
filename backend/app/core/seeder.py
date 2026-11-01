@@ -438,6 +438,6 @@ async def seed_companies(db: AsyncDatabase):
         else:
             res = await db.companies.insert_one(comp)
             companies_map[comp["name"]] = str(res.inserted_id)
-            
+
     logger.info(f"Seeded {len(companies_map)} company records.")
     return companies_map

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.asynchronous.database import AsyncDatabase
 from bson import ObjectId
 from typing import List, Optional
@@ -20,35 +20,35 @@ async def apply_to_drive(
 ):
     if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="Only students can apply to placement drives.")
-        
+
     student = await db.students.find_one({"user_id": current_user["id"]})
     if not student:
         raise HTTPException(status_code=400, detail="Student profile not found. Please complete profile first.")
-        
+
     student_id = str(student["_id"])
-    
+
     # Check drive
     try:
         drive = await db.drives.find_one({"_id": ObjectId(app_in.drive_id)})
     except Exception:
         drive = await db.drives.find_one({"_id": app_in.drive_id})
-        
+
     if not drive:
         raise HTTPException(status_code=404, detail="Placement drive not found.")
-        
+
     if drive.get("status") != "active":
         raise HTTPException(status_code=400, detail=f"Cannot apply: drive status is {drive.get('status')}.")
-        
+
     # Check application deadline
     deadline = drive.get("application_deadline")
     if deadline and datetime.utcnow() > deadline:
         raise HTTPException(status_code=400, detail="Application deadline for this drive has expired.")
-        
+
     # Check existing application
     existing = await db.applications.find_one({"drive_id": app_in.drive_id, "student_id": student_id})
     if existing:
         raise HTTPException(status_code=400, detail="You have already submitted an application for this drive.")
-        
+
     # Verify Eligibility
     student_profile_dict = dict(student)
     student_profile_dict["id"] = student_id
@@ -58,7 +58,7 @@ async def apply_to_drive(
             status_code=400,
             detail=f"Eligibility criteria not satisfied: {'; '.join(eligibility.reasons)}"
         )
-        
+
     now = datetime.utcnow()
     app_doc = {
         "drive_id": app_in.drive_id,
@@ -77,10 +77,10 @@ async def apply_to_drive(
         "applied_at": now,
         "updated_at": now
     }
-    
+
     result = await db.applications.insert_one(app_doc)
     app_id = str(result.inserted_id)
-    
+
     return ApplicationResponse(
         id=app_id,
         drive_id=app_in.drive_id,
@@ -115,19 +115,19 @@ async def get_my_applications(
 ):
     if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="Only students have personal applications.")
-        
+
     student = await db.students.find_one({"user_id": current_user["id"]})
     if not student:
         return []
-        
+
     student_id = str(student["_id"])
     cursor = db.applications.find({"student_id": student_id}).sort("applied_at", -1)
     apps = await cursor.to_list(length=100)
-    
+
     results = []
     for app in apps:
         app_id = str(app["_id"])
-        
+
         drive_info = {}
         try:
             d = await db.drives.find_one({"_id": ObjectId(app["drive_id"])})
@@ -135,7 +135,7 @@ async def get_my_applications(
                 drive_info = d
         except Exception:
             pass
-            
+
         history_entries = [
             RoundHistoryEntry(
                 round_name=h.get("round_name", ""),
@@ -145,7 +145,7 @@ async def get_my_applications(
             )
             for h in app.get("round_history", [])
         ]
-        
+
         results.append(ApplicationResponse(
             id=app_id,
             drive_id=app["drive_id"],
@@ -167,7 +167,7 @@ async def get_my_applications(
             applied_at=app.get("applied_at", datetime.utcnow()),
             updated_at=app.get("updated_at")
         ))
-        
+
     return results
 
 @router.get("/drive/{drive_id}", response_model=List[ApplicationResponse])
@@ -180,10 +180,10 @@ async def get_drive_applicants(
     query = {"drive_id": drive_id}
     if status_filter:
         query["status"] = status_filter
-        
+
     cursor = db.applications.find(query).sort("applied_at", -1)
     apps = await cursor.to_list(length=200)
-    
+
     drive_info = {}
     try:
         d = await db.drives.find_one({"_id": ObjectId(drive_id)})
@@ -191,11 +191,11 @@ async def get_drive_applicants(
             drive_info = d
     except Exception:
         pass
-        
+
     results = []
     for app in apps:
         app_id = str(app["_id"])
-        
+
         student = None
         user = None
         try:
@@ -204,7 +204,7 @@ async def get_drive_applicants(
                 user = await db.users.find_one({"_id": ObjectId(student["user_id"])})
         except Exception:
             pass
-            
+
         history_entries = [
             RoundHistoryEntry(
                 round_name=h.get("round_name", ""),
@@ -214,7 +214,7 @@ async def get_drive_applicants(
             )
             for h in app.get("round_history", [])
         ]
-        
+
         results.append(ApplicationResponse(
             id=app_id,
             drive_id=drive_id,
@@ -236,7 +236,7 @@ async def get_drive_applicants(
             applied_at=app.get("applied_at", datetime.utcnow()),
             updated_at=app.get("updated_at")
         ))
-        
+
     return results
 
 @router.put("/{application_id}/status")
@@ -252,10 +252,10 @@ async def update_application_status(
     except Exception:
         app = await db.applications.find_one({"_id": application_id})
         app_obj_id = application_id
-        
+
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-        
+
     now = datetime.utcnow()
     new_entry = {
         "round_name": status_update.round_name or f"Status changed to {status_update.status}",
@@ -263,14 +263,14 @@ async def update_application_status(
         "remarks": status_update.remarks or "",
         "updated_at": now
     }
-    
+
     update_fields = {
         "status": status_update.status,
         "updated_at": now
     }
     if status_update.current_round is not None:
         update_fields["current_round"] = status_update.current_round
-        
+
     await db.applications.update_one(
         {"_id": app["_id"]},
         {
@@ -278,7 +278,7 @@ async def update_application_status(
             "$push": {"round_history": new_entry}
         }
     )
-    
+
     if status_update.status.lower() in ["offered", "selected", "accepted"]:
         try:
             await db.students.update_one(
@@ -290,5 +290,5 @@ async def update_application_status(
             )
         except Exception:
             pass
-            
+
     return {"message": "Application status updated successfully", "status": status_update.status}

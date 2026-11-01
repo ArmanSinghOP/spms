@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 
 from app.core.security import decode_access_token
 from app.core.database import get_database
-from app.core.roles import AppRole, normalize_role, role_matches
+from app.core.roles import normalize_role, role_matches
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -22,22 +22,22 @@ async def get_current_user(
     payload = decode_access_token(token)
     if payload is None:
         raise credentials_exception
-    
+
     user_id = payload.get("sub")
     if not user_id:
         raise credentials_exception
-    
+
     try:
         user = await db.users.find_one({"_id": ObjectId(user_id)})
     except Exception:
         user = await db.users.find_one({"_id": user_id})
-        
+
     if user is None:
         raise credentials_exception
-    
+
     if not user.get("is_active", True):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user account")
-    
+
     user["id"] = str(user["_id"])
     user["role"] = normalize_role(user.get("role", "STUDENT")).value
     return user
@@ -85,7 +85,7 @@ async def get_current_student(
         res = await db.students.insert_one(profile_data)
         profile_data["_id"] = res.inserted_id
         student_profile = profile_data
-        
+
     student_profile["id"] = str(student_profile["_id"])
     student_profile["user"] = current_user
     return student_profile

@@ -11,7 +11,7 @@ def normalize_role(role_str: str) -> AppRole:
     """Normalize input role strings, preserving backward compatibility for aliases like 'tpo'."""
     if not role_str:
         return AppRole.STUDENT
-    
+
     cleaned = role_str.strip().upper()
     if cleaned in ("TPO", "PLACEMENT_OFFICER", "PLACEMENT-OFFICER", "OFFICER"):
         return AppRole.PLACEMENT_OFFICER

@@ -46,3 +46,28 @@ export const Badge: React.FC<BadgeProps> = ({
     </span>
   );
 };
+
+export const EligibilityBadge: React.FC<{ eligible: boolean }> = ({ eligible }) => (
+  <Badge variant={eligible ? 'success' : 'danger'}>
+    {eligible ? 'Eligible' : 'Ineligible'}
+  </Badge>
+);
+
+export const ApplicationStatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const getVariant = (s: string): BadgeVariant => {
+    switch (s.toLowerCase()) {
+      case 'selected':
+      case 'placed':
+        return 'success';
+      case 'shortlisted':
+        return 'primary';
+      case 'rejected':
+        return 'danger';
+      case 'under review':
+      case 'applied':
+      default:
+        return 'warning';
+    }
+  };
+  return <Badge variant={getVariant(status)}>{status}</Badge>;
+};

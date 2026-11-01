@@ -1,4 +1,3 @@
-import pytest
 from app.services.eligibility_service import check_student_eligibility
 
 def test_student_ineligible_10th_percentage():

@@ -1,5 +1,5 @@
-from typing import Dict, Any, Tuple, List
-from app.schemas.drive import EligibilityCriteria, EligibilityCheckResult
+from typing import Dict, Any, List
+from app.schemas.drive import EligibilityCheckResult
 
 def check_student_eligibility(student_profile: Dict[str, Any], criteria: Dict[str, Any]) -> EligibilityCheckResult:
     """
@@ -7,7 +7,7 @@ def check_student_eligibility(student_profile: Dict[str, Any], criteria: Dict[st
     Returns boolean and clear, actionable reasons if ineligible.
     """
     reasons: List[str] = []
-    
+
     # 1. CGPA Check
     student_cgpa = float(student_profile.get("cgpa", 0.0) or 0.0)
     min_cgpa = float(criteria.get("min_cgpa", 0.0) or 0.0)

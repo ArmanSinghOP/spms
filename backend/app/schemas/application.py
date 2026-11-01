@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
 
 class RoundHistoryEntry(BaseModel):
@@ -29,12 +29,12 @@ class ApplicationResponse(BaseModel):
     student_cgpa: Optional[float] = None
     student_email: Optional[str] = None
     student_resume_url: Optional[str] = None
-    
+
     company_name: Optional[str] = None
     drive_title: Optional[str] = None
     job_role: Optional[str] = None
     package_ctc: Optional[float] = None
-    
+
     status: str
     current_round: int = 1
     round_history: List[RoundHistoryEntry] = Field(default_factory=list)

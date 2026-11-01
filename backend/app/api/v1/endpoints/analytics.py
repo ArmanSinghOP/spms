@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.asynchronous.database import AsyncDatabase
-from bson import ObjectId
 from typing import List
 
 from app.core.database import get_database
@@ -20,21 +19,21 @@ async def get_tpo_analytics(
     placed_students = await db.students.count_documents({"placement_status": "placed"})
     unplaced_students = total_students - placed_students
     placement_percentage = round((placed_students / total_students * 100), 1) if total_students > 0 else 0.0
-    
+
     total_drives = await db.drives.count_documents({})
     active_drives = await db.drives.count_documents({"status": "active"})
     total_offers = await db.applications.count_documents({"status": {"$in": ["Offered", "Selected", "Accepted"]}})
-    
+
     cursor = db.drives.find({}, {"package_ctc": 1})
     drives_ctc = await cursor.to_list(length=100)
     ctc_list = [d.get("package_ctc", 0.0) for d in drives_ctc if d.get("package_ctc")]
-    
+
     highest_package = max(ctc_list) if ctc_list else 0.0
     average_package = round(sum(ctc_list) / len(ctc_list), 2) if ctc_list else 0.0
-    
+
     departments = ["CSE", "CSE(AIML)", "CSE(AI)", "CSIT", "IT", "CS", "ECE", "EEE", "ME"]
     dept_stats: List[DepartmentStat] = []
-    
+
     for dept in departments:
         dept_total = await db.students.count_documents({"department": dept})
         dept_placed = await db.students.count_documents({"department": dept, "placement_status": "placed"})
@@ -46,7 +45,7 @@ async def get_tpo_analytics(
             placement_rate=rate,
             average_ctc=average_package
         ))
-        
+
     return TPODashboardStats(
         total_students=total_students,
         placed_students=placed_students,
@@ -67,7 +66,7 @@ async def get_student_analytics(
 ):
     if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="User is not a student")
-        
+
     student = await db.students.find_one({"user_id": current_user["id"]})
     if not student:
         return StudentDashboardStats(
@@ -80,10 +79,10 @@ async def get_student_analytics(
             cgpa=0.0,
             department="CSE"
         )
-        
+
     student_id = str(student["_id"])
     active_drives = await db.drives.find({"status": "active"}).to_list(length=100)
-    
+
     eligible_count = 0
     student_dict = dict(student)
     student_dict["id"] = student_id
@@ -91,7 +90,7 @@ async def get_student_analytics(
         eligibility = check_student_eligibility(student_dict, d.get("eligibility_criteria", {}))
         if eligibility.eligible:
             eligible_count += 1
-            
+
     applied_count = await db.applications.count_documents({"student_id": student_id})
     shortlisted_count = await db.applications.count_documents({
         "student_id": student_id,
@@ -101,7 +100,7 @@ async def get_student_analytics(
         "student_id": student_id,
         "status": {"$in": ["Offered", "Selected", "Accepted"]}
     })
-    
+
     return StudentDashboardStats(
         total_active_drives=len(active_drives),
         eligible_drives_count=eligible_count,

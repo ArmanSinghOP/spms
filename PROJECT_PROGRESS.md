@@ -64,44 +64,71 @@
 | Pseudocode & flowcharts | ⬜ Pending | | |
 | API specification | ⬜ Pending | | |
 
-### Phase 4 — Database Setup & Seeding ✅ COMPLETE
+### Phase 4 — Database Architecture & MongoDB Atlas Migration ✅ COMPLETE
 
 | Task | Status | Date | Notes |
 |------|--------|------|-------|
-| MongoDB local service check | ✅ Done | 2026-11-01 | MongoDB 8.3.9 active on localhost:27017 |
-| Database connection configuration | ✅ Done | 2026-11-01 | Async Motor client with connection lifecycle |
-| Collection initialization & indexes | ✅ Done | 2026-11-01 | Unique indexes on users, students, drives, applications |
-| Automated database seeder | ✅ Done | 2026-11-01 | Pre-seeded with 5 users, 4 drives, 3 multi-stage applications |
+| Deprecate Motor Driver | ✅ Done | 2026-11-01 | Uninstalled motor==3.7.1, replaced with native PyMongo Async |
+| Native PyMongo Async Engine | ✅ Done | 2026-11-01 | `AsyncMongoClient` with `ServerApi` and connection pooling |
+| Atlas Cluster Integration | ✅ Done | 2026-11-01 | Configured for `spms-cluster` with ping verification & fallback |
+| Atlas Verification Document | ✅ Done | 2026-11-01 | Saved sanitized report in `docs/06-devops/atlas-connection-verification.md` |
+| Corporate Partner Collection | ✅ Done | 2026-11-01 | Added `companies` collection with unique names, tier, and contact info |
 
 ### Phase 5 — Backend Development (FastAPI) ✅ COMPLETE
 
 | Task | Status | Date | Notes |
 |------|--------|------|-------|
-| Project configuration & settings | ✅ Done | 2026-11-01 | Pydantic Settings, CORS, uploads directory |
+| Modern FastAPI Lifespan Manager | ✅ Done | 2026-11-01 | Async lifespan with database connection & auto-seeding |
 | Security & Auth (Argon2 + PyJWT) | ✅ Done | 2026-11-01 | PasswordHasher, JWT token generation & role validation |
-| Authentication module & RBAC | ✅ Done | 2026-11-01 | /auth/login, /auth/register, /auth/me with role guards |
-| Student profile management | ✅ Done | 2026-11-01 | /students/me, resume file uploads, admin search |
-| Placement drive management | ✅ Done | 2026-11-01 | /drives/ CRUD with eligibility criteria configuration |
-| Automated eligibility engine | ✅ Done | 2026-11-01 | Real-time checks for CGPA, 10th/12th, backlogs, branch, placed status |
-| Application & round progression | ✅ Done | 2026-11-01 | 1-click apply, round history timeline, stage transitions |
-| Analytics & KPI endpoints | ✅ Done | 2026-11-01 | /analytics/tpo and /analytics/student aggregation pipelines |
-| Automated unit testing | ✅ Done | 2026-11-01 | Pytest suite for eligibility engine (100% pass) |
+| Canonical Roles & Normalization | ✅ Done | 2026-11-01 | `STUDENT`, `PLACEMENT_OFFICER`, `RECRUITER`, `ADMIN` (safe legacy TPO aliasing) |
+| Corporate Partner Management | ✅ Done | 2026-11-01 | Full `/api/v1/companies` CRUD endpoints with role protection |
+| Placement Drive Management | ✅ Done | 2026-11-01 | `/api/v1/drives/` CRUD with dynamic criteria and interview rounds |
+| Automated Eligibility Engine | ✅ Done | 2026-11-01 | Real-time checks: CGPA, 10th/12th, backlogs, branch, placed status |
+| Application & Round Progression | ✅ Done | 2026-11-01 | 1-click apply, round history timeline, stage transitions |
+| Analytics & KPI Aggregations | ✅ Done | 2026-11-01 | Real MongoDB aggregations for TPO and student dashboards |
+| Automated Pytest Test Suite | ✅ Done | 2026-11-01 | 32 tests (100% pass) with coverage reporting and zero Ruff linter errors |
 
-### Phase 6 — Frontend Development (React + TS + Tailwind) ✅ COMPLETE
+### Phase 6 — Frontend Development (Watermelon UI Redesign) ✅ COMPLETE
 
 | Task | Status | Date | Notes |
 |------|--------|------|-------|
-| Vite + React 18 + TS setup | ✅ Done | 2026-11-01 | Tailwind CSS v4, Lucide React, proxy to 8000 |
-| Unified API Client & AuthContext | ✅ Done | 2026-11-01 | JWT persistence, session restore, 1-click demo switcher |
-| Student Dashboard | ✅ Done | 2026-11-01 | Dynamic eligibility badges, 1-click apply, application pipeline |
-| TPO Admin Dashboard | ✅ Done | 2026-11-01 | Institutional KPIs, dept placement stats, drive creator |
-| Candidate Management Modal | ✅ Done | 2026-11-01 | Shortlist OA, advance to Tech Interview, Mark Offered |
-| Academic Profile Editor | ✅ Done | 2026-11-01 | Interactive marks/backlog editor with PDF resume upload |
-| End-to-end browser verification | ✅ Done | 2026-11-01 | Verified with browser subagent and recorded video |
+| Watermelon MCP Integration | ✅ Done | 2026-11-01 | Extracted design inspiration, dashboard layouts, and component patterns |
+| Design Tokens & Primitives | ✅ Done | 2026-11-01 | `Badge`, `Button`, `Card`, `Modal`, `EmptyState`, `Skeleton`, `Toast` |
+| Professional Application Shell | ✅ Done | 2026-11-01 | `AppShell` with institutional branding, collapsible sidebar, and breadcrumbs |
+| Student Portal | ✅ Done | 2026-11-01 | Academic profile, KPI cards, recommended drives, application pipeline |
+| Placement Officer Portal | ✅ Done | 2026-11-01 | Institutional overview, company directory, drive manager, candidate drawer |
+| Recruiter Portal | ✅ Done | 2026-11-01 | Corporate dashboard, candidate review drawer, round advancement |
+| Administrator Portal | ✅ Done | 2026-11-01 | System telemetry, user management, audit activity, security controls |
+| Multi-Step Create Drive Wizard | ✅ Done | 2026-11-01 | React Hook Form + Zod schema validation with dynamic branch multi-select |
+| Automated Vitest Frontend Tests | ✅ Done | 2026-11-01 | 7 unit tests (100% pass) with React Testing Library |
+| Browser & Visual QA Verification| ✅ Done | 2026-11-01 | Verified live at 5173 with browser subagent and recorded video session |
 
-### Phase 6–12
+### Phase 7 — DevOps, Containerization & CI/CD ✅ COMPLETE
 
-Detailed task breakdowns will be added as earlier phases complete.
+| Task | Status | Date | Notes |
+|------|--------|------|-------|
+| Backend Dockerfile | ✅ Done | 2026-11-01 | Python 3.10-slim, non-root user, healthcheck endpoint |
+| Frontend Dockerfile | ✅ Done | 2026-11-01 | Multi-stage Node 22 build with Nginx reverse proxy & SPA router |
+| Docker Compose Orchestration | ✅ Done | 2026-11-01 | `docker-compose.yml` linking frontend, backend, healthchecks & volumes |
+| GitHub Actions CI Pipeline | ✅ Done | 2026-11-01 | `.github/workflows/ci.yml` validating Ruff, pytest, vitest, and Docker |
+| Post-MVP Full Audit Document | ✅ Done | 2026-11-01 | Saved comprehensive audit report in `docs/06-devops/post-mvp-audit.md` |
+
+### Phase 8 — Comprehensive Security Remediation & History Sanitization ✅ COMPLETE
+
+| Task | Status | Date | Notes |
+|------|--------|------|-------|
+| Credential Rotation Verification | ✅ Done | 2026-11-01 | Verified Atlas user `spms_app_user` with live ping and JWT signing secret |
+| Pydantic Settings Refactoring | ✅ Done | 2026-11-01 | Strict startup validation, no hardcoded fallbacks, template sanitization |
+| CORS Vulnerability Fix | ✅ Done | 2026-11-01 | Removed `*` wildcard origin, explicit allow-list for `localhost`/`127.0.0.1:5173` |
+| Masked Logging & Safe Failover | ✅ Done | 2026-11-01 | Implemented `sanitize_mongo_uri()`; eliminated silent localhost fallback |
+| Demo Seeding Protection | ✅ Done | 2026-11-01 | Seeder restricted strictly to development; passwords from environment |
+| Local Git History Rewrite | ✅ Done | 2026-11-01 | `git-filter-repo` sanitized all commits with `[REDACTED_SECRET]` |
+| Repository Secret Audit | ✅ Done | 2026-11-01 | Gitleaks v8.18.2 scanned local history and working tree (0 leaks found) |
+| Preventative Secret Scanner CI | ✅ Done | 2026-11-01 | `.github/workflows/security.yml` added with Gitleaks and `.env` checks |
+| Security Documentation Reports | ✅ Done | 2026-11-01 | Created `security-audit.md`, `git-history-remediation.md`, `atlas-security-verification.md`, `security-remediation-complete.md` |
+| Remote Force-Push Preparation | ⏳ Pending Approval | 2026-11-01 | Instructions prepared for owner approval before updating remote branches |
+
+
 
 ---
 

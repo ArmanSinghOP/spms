@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.asynchronous.database import AsyncDatabase
 from datetime import datetime
-from bson import ObjectId
 
 from app.core.database import get_database
 from app.core.security import get_password_hash, verify_password, create_access_token
@@ -28,7 +27,7 @@ async def register(user_in: UserRegister, db: AsyncDatabase = Depends(get_databa
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this email address already exists in the system."
         )
-    
+
     # Create user doc
     user_doc = {
         "email": user_in.email.lower(),
@@ -40,11 +39,11 @@ async def register(user_in: UserRegister, db: AsyncDatabase = Depends(get_databa
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
-    
+
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
     user_doc["id"] = user_id
-    
+
     # Create student profile
     student_doc = {
         "user_id": user_id,
@@ -63,9 +62,9 @@ async def register(user_in: UserRegister, db: AsyncDatabase = Depends(get_databa
         "created_at": datetime.utcnow()
     }
     await db.students.insert_one(student_doc)
-        
+
     access_token = create_access_token(subject=user_id, role=user_doc["role"])
-    
+
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -88,23 +87,23 @@ async def login(credentials: UserLogin, db: AsyncDatabase = Depends(get_database
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password combination."
         )
-        
+
     if not verify_password(credentials.password, user.get("password_hash", "")):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password combination."
         )
-        
+
     if not user.get("is_active", True):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account has been deactivated. Please contact TPO administrator."
         )
-        
+
     user_id = str(user["_id"])
     canonical_role = normalize_role(user.get("role", "STUDENT")).value
     access_token = create_access_token(subject=user_id, role=canonical_role)
-    
+
     return Token(
         access_token=access_token,
         token_type="bearer",

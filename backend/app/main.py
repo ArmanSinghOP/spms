@@ -6,7 +6,7 @@ import os
 import logging
 
 from app.core.config import settings
-from app.core.database import connect_to_mongo, close_mongo_connection, get_database
+from app.core.database import connect_to_mongo, close_mongo_connection
 from app.core.seeder import seed_initial_data
 from app.api.v1.api import api_router
 

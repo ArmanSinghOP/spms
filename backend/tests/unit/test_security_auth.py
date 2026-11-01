@@ -61,13 +61,6 @@ def test_reject_tampered_token_payload():
     assert decoded is None
 
 def test_reject_algorithm_none():
-    user_id = "654321654321654321654321"
-    header = {"alg": "none", "typ": "JWT"}
-    payload = {
-        "sub": user_id,
-        "role": "ADMIN",
-        "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
-    }
     # Algorithm none attack representation (mock test vector)
     raw_none_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiIxMjM0NTYiLCJyb2xlIjoiQURNSU4ifQ."  # gitleaks:allow
     decoded = decode_access_token(raw_none_token)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.asynchronous.database import AsyncDatabase
 from bson import ObjectId
 from typing import List, Optional
@@ -26,10 +26,10 @@ async def list_companies(
             {"industry": {"$regex": search, "$options": "i"}},
             {"location": {"$regex": search, "$options": "i"}}
         ]
-        
+
     cursor = db.companies.find(query).sort("name", 1)
     companies = await cursor.to_list(length=100)
-    
+
     results = []
     for c in companies:
         c_id = str(c["_id"])
@@ -37,7 +37,7 @@ async def list_companies(
         c["active_drives_count"] = await db.drives.count_documents({"company_name": c["name"], "status": "active"})
         c["total_hires_count"] = await db.applications.count_documents({"company_name": c["name"], "status": {"$in": ["Offered", "Selected"]}})
         results.append(c)
-        
+
     return results
 
 @router.post("/", response_model=CompanyResponse)
@@ -49,11 +49,11 @@ async def create_company(
     existing = await db.companies.find_one({"name": comp_in.name})
     if existing:
         raise HTTPException(status_code=400, detail="A company with this name is already registered.")
-        
+
     comp_dict = comp_in.dict()
     comp_dict["created_at"] = datetime.utcnow()
     comp_dict["updated_at"] = datetime.utcnow()
-    
+
     result = await db.companies.insert_one(comp_dict)
     comp_dict["id"] = str(result.inserted_id)
     comp_dict["active_drives_count"] = 0
@@ -70,10 +70,10 @@ async def get_company(
         comp = await db.companies.find_one({"_id": ObjectId(company_id)})
     except Exception:
         comp = await db.companies.find_one({"_id": company_id})
-        
+
     if not comp:
         raise HTTPException(status_code=404, detail="Company not found")
-        
+
     comp["id"] = str(comp["_id"])
     comp["active_drives_count"] = await db.drives.count_documents({"company_name": comp["name"], "status": "active"})
     comp["total_hires_count"] = await db.applications.count_documents({"company_name": comp["name"], "status": {"$in": ["Offered", "Selected"]}})
@@ -88,12 +88,12 @@ async def update_company(
 ):
     update_data = {k: v for k, v in comp_in.dict(exclude_unset=True).items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
-    
+
     try:
         query = {"_id": ObjectId(company_id)}
     except Exception:
         query = {"_id": company_id}
-        
+
     updated = await db.companies.find_one_and_update(
         query,
         {"$set": update_data},
@@ -101,7 +101,7 @@ async def update_company(
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Company not found")
-        
+
     updated["id"] = str(updated["_id"])
     updated["active_drives_count"] = await db.drives.count_documents({"company_name": updated["name"], "status": "active"})
     updated["total_hires_count"] = await db.applications.count_documents({"company_name": updated["name"], "status": {"$in": ["Offered", "Selected"]}})
@@ -117,9 +117,9 @@ async def delete_company(
         query = {"_id": ObjectId(company_id)}
     except Exception:
         query = {"_id": company_id}
-        
+
     res = await db.companies.delete_one(query)
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Company not found")
-        
+
     return {"message": "Company deleted successfully."}

@@ -69,31 +69,31 @@ async def init_db_indexes(db: AsyncDatabase):
         # Users indexes
         await db.users.create_index("email", unique=True)
         await db.users.create_index("role")
-        
+
         # Students indexes
         await db.students.create_index("user_id", unique=True)
         await db.students.create_index("roll_number", unique=True)
         await db.students.create_index("department")
         await db.students.create_index("cgpa")
-        
+
         # Companies indexes
         await db.companies.create_index("name", unique=True)
         await db.companies.create_index("industry")
-        
+
         # Drives indexes
         await db.drives.create_index("status")
         await db.drives.create_index("application_deadline")
         await db.drives.create_index("company_name")
         await db.drives.create_index("company_id")
-        
+
         # Applications indexes
         await db.applications.create_index([("drive_id", 1), ("student_id", 1)], unique=True)
         await db.applications.create_index("status")
-        
+
         # Audit Logs index
         await db.audit_logs.create_index("timestamp")
         await db.audit_logs.create_index("user_id")
-        
+
         logger.info("All MongoDB indexes successfully verified and initialized.")
     except Exception as e:
         logger.warning(f"Note during index initialization: {e}")
