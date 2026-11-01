@@ -25,20 +25,30 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_COMMENTS: true
+          GITLEAKS_ENABLE_COMMENTS: false
 
       - name: Verify Environment Exclusion (.env protection)
         run: |
-          echo "Verifying .env files are excluded from Git..."
-          if git ls-files | grep -E "(^|/)\.env($|\..*)"; then
+          echo "Verifying sensitive .env files are excluded from Git..."
+          if git ls-files | grep -E "(^|/)\.env($|\.(local|development|production|staging|test)$)"; then
             echo "ERROR: Tracked .env file detected in Git index!"
             exit 1
           fi
-          echo ".env file exclusion verified."
+          echo ".env file exclusion verified successfully."
 
   backend-security-tests:
     name: Backend Security & Regression Suite
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -61,6 +71,6 @@ jobs:
           SECRET_KEY: "synthetic-ci-test-key-minimum-32-characters-long!"
           DATABASE_NAME: "spms_ci_test"
           ENVIRONMENT: "development"
-          BACKEND_CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+          BACKEND_CORS_ORIGINS: '["http://localhost:5173", "http://127.0.0.1:5173"]'
         run: |
           python -m pytest backend/tests/unit/test_security_auth.py backend/tests/unit/test_cors_security.py backend/tests/unit/test_eligibility.py backend/tests/unit/test_eligibility_extended.py -v

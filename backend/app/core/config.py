@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     )
 
     # Explicit CORS Allowed Origins - Wildcard origins strictly forbidden
-    BACKEND_CORS_ORIGINS: List[str] = Field(
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = Field(
         default_factory=lambda: [
             "http://localhost:5173",
             "http://127.0.0.1:5173"
@@ -99,7 +99,7 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters long for cryptographic security.")
         return v
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @field_validator("BACKEND_CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         origins: List[str] = []
