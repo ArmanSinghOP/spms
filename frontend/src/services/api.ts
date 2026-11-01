@@ -1,6 +1,6 @@
 import { 
   User, StudentProfile, Drive, Application, 
-  TPODashboardStats, StudentDashboardStats 
+  TPODashboardStats, StudentDashboardStats, Company 
 } from '../types';
 
 const API_BASE = '/api/v1';
@@ -169,6 +169,39 @@ class ApiClient {
     return this.request<{ message: string; status: string }>(`/applications/${applicationId}/status`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  }
+
+  // --- Companies Endpoints ---
+  async listCompanies(params?: { industry?: string; search?: string }) {
+    const query = new URLSearchParams();
+    if (params?.industry) query.append('industry', params.industry);
+    if (params?.search) query.append('search', params.search);
+    const queryString = query.toString();
+    return this.request<Company[]>(`/companies/${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getCompany(id: string) {
+    return this.request<Company>(`/companies/${id}`);
+  }
+
+  async createCompany(data: any) {
+    return this.request<Company>('/companies/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCompany(id: string, data: any) {
+    return this.request<Company>(`/companies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCompany(id: string) {
+    return this.request<{ message: string }>(`/companies/${id}`, {
+      method: 'DELETE',
     });
   }
 

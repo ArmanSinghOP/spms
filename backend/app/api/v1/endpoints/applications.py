@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 from bson import ObjectId
 from typing import List, Optional
 from datetime import datetime
 
 from app.core.database import get_database
+from app.core.roles import normalize_role, AppRole
 from app.dependencies.auth import get_current_user, require_roles
 from app.schemas.application import ApplicationCreate, ApplicationStatusUpdate, ApplicationResponse, RoundHistoryEntry
 from app.services.eligibility_service import check_student_eligibility
@@ -15,9 +16,9 @@ router = APIRouter()
 async def apply_to_drive(
     app_in: ApplicationCreate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
-    if current_user.get("role") != "student":
+    if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="Only students can apply to placement drives.")
         
     student = await db.students.find_one({"user_id": current_user["id"]})
@@ -58,7 +59,6 @@ async def apply_to_drive(
             detail=f"Eligibility criteria not satisfied: {'; '.join(eligibility.reasons)}"
         )
         
-    # Create application
     now = datetime.utcnow()
     app_doc = {
         "drive_id": app_in.drive_id,
@@ -111,9 +111,9 @@ async def apply_to_drive(
 @router.get("/my", response_model=List[ApplicationResponse])
 async def get_my_applications(
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
-    if current_user.get("role") != "student":
+    if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="Only students have personal applications.")
         
     student = await db.students.find_one({"user_id": current_user["id"]})
@@ -128,7 +128,6 @@ async def get_my_applications(
     for app in apps:
         app_id = str(app["_id"])
         
-        # Load drive info
         drive_info = {}
         try:
             d = await db.drives.find_one({"_id": ObjectId(app["drive_id"])})
@@ -175,8 +174,8 @@ async def get_my_applications(
 async def get_drive_applicants(
     drive_id: str,
     status_filter: Optional[str] = Query(None, alias="status"),
-    current_user: dict = Depends(require_roles(["tpo", "admin", "recruiter"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "RECRUITER", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     query = {"drive_id": drive_id}
     if status_filter:
@@ -185,7 +184,6 @@ async def get_drive_applicants(
     cursor = db.applications.find(query).sort("applied_at", -1)
     apps = await cursor.to_list(length=200)
     
-    # Load drive info
     drive_info = {}
     try:
         d = await db.drives.find_one({"_id": ObjectId(drive_id)})
@@ -198,7 +196,6 @@ async def get_drive_applicants(
     for app in apps:
         app_id = str(app["_id"])
         
-        # Load student & user info
         student = None
         user = None
         try:
@@ -246,8 +243,8 @@ async def get_drive_applicants(
 async def update_application_status(
     application_id: str,
     status_update: ApplicationStatusUpdate,
-    current_user: dict = Depends(require_roles(["tpo", "admin", "recruiter"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "RECRUITER", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     try:
         app_obj_id = ObjectId(application_id)
@@ -282,7 +279,6 @@ async def update_application_status(
         }
     )
     
-    # If student is Offered, update student placement status to 'placed'
     if status_update.status.lower() in ["offered", "selected", "accepted"]:
         try:
             await db.students.update_one(

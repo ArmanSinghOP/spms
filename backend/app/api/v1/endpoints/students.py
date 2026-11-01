@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 from bson import ObjectId
 from typing import List, Optional
 import os
@@ -8,6 +8,7 @@ from datetime import datetime
 
 from app.core.database import get_database
 from app.core.config import settings
+from app.core.roles import normalize_role, AppRole
 from app.dependencies.auth import get_current_user, require_roles
 from app.schemas.student import StudentProfileUpdate, StudentResponse
 
@@ -16,9 +17,9 @@ router = APIRouter()
 @router.get("/me", response_model=StudentResponse)
 async def get_my_student_profile(
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
-    if current_user.get("role") != "student":
+    if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="User is not a student")
         
     student = await db.students.find_one({"user_id": current_user["id"]})
@@ -35,9 +36,9 @@ async def get_my_student_profile(
 async def update_my_student_profile(
     profile_update: StudentProfileUpdate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
-    if current_user.get("role") != "student":
+    if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="User is not a student")
         
     update_data = {k: v for k, v in profile_update.dict(exclude_unset=True).items() if v is not None}
@@ -62,9 +63,9 @@ async def update_my_student_profile(
 async def upload_resume(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
-    if current_user.get("role") != "student":
+    if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="User is not a student")
         
     if not file.filename.lower().endswith(('.pdf', '.doc', '.docx')):
@@ -93,8 +94,8 @@ async def list_students(
     placement_status: Optional[str] = Query(None),
     min_cgpa: Optional[float] = Query(None),
     search: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles(["tpo", "admin", "recruiter"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "RECRUITER", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     query = {}
     if department:
@@ -134,8 +135,8 @@ async def list_students(
 @router.get("/{student_id}", response_model=StudentResponse)
 async def get_student_by_id(
     student_id: str,
-    current_user: dict = Depends(require_roles(["tpo", "admin", "recruiter"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "RECRUITER", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     try:
         student = await db.students.find_one({"_id": ObjectId(student_id)})

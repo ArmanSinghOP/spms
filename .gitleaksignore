@@ -1,0 +1,3 @@
+# Gitleaks ignore file for documented false positives
+# Add commit SHA, file path, or fingerprint for verified false positives only.
+# Do NOT add legitimate secrets or API keys here.

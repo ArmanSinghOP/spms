@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 from bson import ObjectId
 from typing import List
 
 from app.core.database import get_database
+from app.core.roles import normalize_role, AppRole
 from app.dependencies.auth import get_current_user, require_roles
 from app.schemas.analytics import TPODashboardStats, StudentDashboardStats, DepartmentStat
 from app.services.eligibility_service import check_student_eligibility
@@ -12,8 +13,8 @@ router = APIRouter()
 
 @router.get("/tpo", response_model=TPODashboardStats)
 async def get_tpo_analytics(
-    current_user: dict = Depends(require_roles(["tpo", "admin"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     total_students = await db.students.count_documents({})
     placed_students = await db.students.count_documents({"placement_status": "placed"})
@@ -24,7 +25,6 @@ async def get_tpo_analytics(
     active_drives = await db.drives.count_documents({"status": "active"})
     total_offers = await db.applications.count_documents({"status": {"$in": ["Offered", "Selected", "Accepted"]}})
     
-    # Calculate highest and average package from active or completed drives with offers
     cursor = db.drives.find({}, {"package_ctc": 1})
     drives_ctc = await cursor.to_list(length=100)
     ctc_list = [d.get("package_ctc", 0.0) for d in drives_ctc if d.get("package_ctc")]
@@ -32,7 +32,6 @@ async def get_tpo_analytics(
     highest_package = max(ctc_list) if ctc_list else 0.0
     average_package = round(sum(ctc_list) / len(ctc_list), 2) if ctc_list else 0.0
     
-    # Department breakdown
     departments = ["CSE", "CSE(AIML)", "CSE(AI)", "CSIT", "IT", "CS", "ECE", "EEE", "ME"]
     dept_stats: List[DepartmentStat] = []
     
@@ -64,9 +63,9 @@ async def get_tpo_analytics(
 @router.get("/student", response_model=StudentDashboardStats)
 async def get_student_analytics(
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
-    if current_user.get("role") != "student":
+    if normalize_role(current_user.get("role")) != AppRole.STUDENT:
         raise HTTPException(status_code=400, detail="User is not a student")
         
     student = await db.students.find_one({"user_id": current_user["id"]})

@@ -1,25 +1,36 @@
 import logging
 from datetime import datetime, timedelta
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 from app.core.security import get_password_hash
+from app.core.roles import AppRole
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-async def seed_initial_data(db: AsyncIOMotorDatabase):
-    """Seed comprehensive initial demo data for SPMS MVP testing and presentation"""
+async def seed_initial_data(db: AsyncDatabase):
+    """Seed comprehensive initial demo data for SPMS MVP testing and presentation using PyMongo Async"""
+    # Enforce strict production protection
+    if str(settings.ENVIRONMENT).lower() == "production" or not settings.ENABLE_DEMO_SEEDING:
+        logger.info("Demo seeding is disabled for this environment.")
+        return
+
     try:
         user_count = await db.users.count_documents({})
         if user_count > 0:
-            logger.info("Database already contains data; skipping initial seed.")
+            logger.info("Database already contains data; checking company seed...")
+            company_count = await db.companies.count_documents({})
+            if company_count == 0:
+                await seed_companies(db)
             return
 
-        logger.info("Seeding initial SPMS demo data...")
+        logger.info("Seeding initial SPMS demo data into MongoDB...")
         now = datetime.utcnow()
 
-        # 1. Create Users
-        tpo_password = get_password_hash("Admin@123")
-        student_password = get_password_hash("Student@123")
-        recruiter_password = get_password_hash("Recruiter@123")
+        # 1. Create Users with Canonical Roles (passwords sourced from environment configuration)
+        tpo_password = get_password_hash(settings.DEMO_ADMIN_PASSWORD)
+        student_password = get_password_hash(settings.DEMO_STUDENT_PASSWORD)
+        recruiter_password = get_password_hash(settings.DEMO_RECRUITER_PASSWORD)
+        admin_password = get_password_hash(settings.DEMO_ADMIN_PASSWORD)
 
         users_to_insert = [
             {
@@ -27,7 +38,16 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
                 "password_hash": tpo_password,
                 "full_name": "Dr. Rajesh Verma (Head TPO)",
                 "phone": "+91 98765 43210",
-                "role": "tpo",
+                "role": AppRole.PLACEMENT_OFFICER.value,
+                "is_active": True,
+                "created_at": now
+            },
+            {
+                "email": "admin@kiet.edu",
+                "password_hash": admin_password,
+                "full_name": "System Administrator",
+                "phone": "+91 98765 43211",
+                "role": AppRole.ADMIN.value,
                 "is_active": True,
                 "created_at": now
             },
@@ -36,7 +56,7 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
                 "password_hash": student_password,
                 "full_name": "Arjun Sharma",
                 "phone": "+91 98112 33445",
-                "role": "student",
+                "role": AppRole.STUDENT.value,
                 "is_active": True,
                 "created_at": now
             },
@@ -45,7 +65,7 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
                 "password_hash": student_password,
                 "full_name": "Priya Verma",
                 "phone": "+91 98223 44556",
-                "role": "student",
+                "role": AppRole.STUDENT.value,
                 "is_active": True,
                 "created_at": now
             },
@@ -54,7 +74,7 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
                 "password_hash": student_password,
                 "full_name": "Rohit Singh",
                 "phone": "+91 98334 55667",
-                "role": "student",
+                "role": AppRole.STUDENT.value,
                 "is_active": True,
                 "created_at": now
             },
@@ -63,7 +83,7 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
                 "password_hash": recruiter_password,
                 "full_name": "Sneha Kapoor (Google University Recruiter)",
                 "phone": "+91 98445 66778",
-                "role": "recruiter",
+                "role": AppRole.RECRUITER.value,
                 "is_active": True,
                 "created_at": now
             }
@@ -73,11 +93,14 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
         user_ids = [str(uid) for uid in user_res.inserted_ids]
 
         tpo_id = user_ids[0]
-        arjun_id = user_ids[1]
-        priya_id = user_ids[2]
-        rohit_id = user_ids[3]
+        arjun_id = user_ids[2]
+        priya_id = user_ids[3]
+        rohit_id = user_ids[4]
 
-        # 2. Create Student Profiles
+        # 2. Seed Companies
+        companies_map = await seed_companies(db)
+
+        # 3. Create Student Profiles
         students_to_insert = [
             {
                 "user_id": arjun_id,
@@ -141,11 +164,12 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
         priya_stu_id = student_ids[1]
         rohit_stu_id = student_ids[2]
 
-        # 3. Create Placement Drives
+        # 4. Create Placement Drives
         drives_to_insert = [
             {
                 "title": "Software Development Engineer (L3)",
                 "company_name": "Google",
+                "company_id": companies_map.get("Google"),
                 "job_role": "Software Development Engineer",
                 "job_description": "Join Google's core engineering teams building scalable cloud and distributed infrastructure systems.",
                 "package_ctc": 32.5,
@@ -177,6 +201,7 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
             {
                 "title": "Cloud Solution Engineer",
                 "company_name": "Microsoft",
+                "company_id": companies_map.get("Microsoft"),
                 "job_role": "Azure Cloud Engineer",
                 "job_description": "Architect and deploy high-reliability enterprise solutions leveraging Microsoft Azure cloud platform.",
                 "package_ctc": 24.0,
@@ -207,6 +232,7 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
             {
                 "title": "Systems Engineer — Digital Track",
                 "company_name": "Tata Consultancy Services (TCS)",
+                "company_id": companies_map.get("Tata Consultancy Services (TCS)"),
                 "job_role": "Digital Technology Engineer",
                 "job_description": "Full-stack development, enterprise automation, and AI integration for global financial and retail clients.",
                 "package_ctc": 7.5,
@@ -236,6 +262,7 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
             {
                 "title": "Associate Software Engineer",
                 "company_name": "Amazon",
+                "company_id": companies_map.get("Amazon"),
                 "job_role": "SDE-1",
                 "job_description": "Build services and client-facing features that serve hundreds of millions of customers worldwide.",
                 "package_ctc": 28.0,
@@ -267,13 +294,11 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
 
         drives_res = await db.drives.insert_many(drives_to_insert)
         drive_ids = [str(did) for did in drives_res.inserted_ids]
-        google_drive_id = drive_ids[0]
         microsoft_drive_id = drive_ids[1]
         tcs_drive_id = drive_ids[2]
 
-        # 4. Create Initial Seed Applications
+        # 5. Create Initial Seed Applications
         apps_to_insert = [
-            # Arjun applied to Microsoft -> Shortlisted for Interview Round 1
             {
                 "drive_id": microsoft_drive_id,
                 "student_id": arjun_stu_id,
@@ -297,7 +322,6 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
                 "applied_at": now - timedelta(days=2),
                 "updated_at": now - timedelta(days=1)
             },
-            # Rohit applied to Microsoft and was Offered
             {
                 "drive_id": microsoft_drive_id,
                 "student_id": rohit_stu_id,
@@ -327,7 +351,6 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
                 "applied_at": now - timedelta(days=5),
                 "updated_at": now - timedelta(days=2)
             },
-            # Priya applied to TCS
             {
                 "drive_id": tcs_drive_id,
                 "student_id": priya_stu_id,
@@ -348,7 +371,73 @@ async def seed_initial_data(db: AsyncIOMotorDatabase):
         ]
 
         await db.applications.insert_many(apps_to_insert)
-        logger.info("SPMS demo data successfully seeded into MongoDB.")
+        logger.info("SPMS initial demo data successfully seeded.")
 
     except Exception as e:
         logger.error(f"Error seeding initial data: {e}")
+
+async def seed_companies(db: AsyncDatabase):
+    """Seed initial corporate recruiting partners"""
+    now = datetime.utcnow()
+    companies = [
+        {
+            "name": "Google",
+            "industry": "Internet & Cloud Technology",
+            "website": "https://careers.google.com",
+            "contact_email": "university-india@google.com",
+            "contact_phone": "+91 80 6721 8000",
+            "tier": "Tier 1 - Dream (>10 LPA)",
+            "location": "Bengaluru / Hyderabad",
+            "description": "Global technology leader in search, cloud computing, and AI systems.",
+            "created_at": now,
+            "updated_at": now
+        },
+        {
+            "name": "Microsoft",
+            "industry": "Enterprise Software & Cloud",
+            "website": "https://careers.microsoft.com",
+            "contact_email": "india-campus@microsoft.com",
+            "contact_phone": "+91 40 6694 0000",
+            "tier": "Tier 1 - Dream (>10 LPA)",
+            "location": "Noida / Hyderabad / Bengaluru",
+            "description": "Pioneering enterprise productivity, operating systems, and Azure cloud infrastructure.",
+            "created_at": now,
+            "updated_at": now
+        },
+        {
+            "name": "Amazon",
+            "industry": "E-Commerce & Cloud Services",
+            "website": "https://amazon.jobs",
+            "contact_email": "university-recruiting-in@amazon.com",
+            "contact_phone": "+91 80 4331 4000",
+            "tier": "Tier 1 - Dream (>10 LPA)",
+            "location": "Bengaluru / Gurugram / Hyderabad",
+            "description": "Worldwide leader in e-commerce, cloud infrastructure (AWS), and digital streaming.",
+            "created_at": now,
+            "updated_at": now
+        },
+        {
+            "name": "Tata Consultancy Services (TCS)",
+            "industry": "IT Services & Consulting",
+            "website": "https://www.tcs.com/careers",
+            "contact_email": "campus.talent@tcs.com",
+            "contact_phone": "+91 22 6778 9999",
+            "tier": "Tier 3 - Core (5-10 LPA)",
+            "location": "Pan-India",
+            "description": "Leading global IT services, consulting, and business solutions provider.",
+            "created_at": now,
+            "updated_at": now
+        }
+    ]
+
+    companies_map = {}
+    for comp in companies:
+        existing = await db.companies.find_one({"name": comp["name"]})
+        if existing:
+            companies_map[comp["name"]] = str(existing["_id"])
+        else:
+            res = await db.companies.insert_one(comp)
+            companies_map[comp["name"]] = str(res.inserted_id)
+            
+    logger.info(f"Seeded {len(companies_map)} company records.")
+    return companies_map

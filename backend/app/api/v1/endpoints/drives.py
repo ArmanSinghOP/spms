@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 from bson import ObjectId
 from typing import List, Optional
 from datetime import datetime
 
 from app.core.database import get_database
+from app.core.roles import normalize_role, AppRole
 from app.dependencies.auth import get_current_user, require_roles
 from app.schemas.drive import DriveCreate, DriveUpdate, DriveResponse, EligibilityCheckResult
 from app.services.eligibility_service import check_student_eligibility
@@ -15,7 +16,7 @@ router = APIRouter()
 async def list_drives(
     status_filter: Optional[str] = Query(None, alias="status"),
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
     query = {}
     if status_filter:
@@ -27,24 +28,21 @@ async def list_drives(
     # If the user is a student, fetch their profile and existing applications to compute eligibility
     student_profile = None
     applied_drive_map = {}
-    if current_user.get("role") == "student":
+    if normalize_role(current_user.get("role")) == AppRole.STUDENT:
         student_profile = await db.students.find_one({"user_id": current_user["id"]})
         if student_profile:
             student_profile["id"] = str(student_profile["_id"])
             student_apps = await db.applications.find({"student_id": student_profile["id"]}).to_list(length=100)
             applied_drive_map = {app["drive_id"]: app.get("status", "Applied") for app in student_apps}
             
-    # Also fetch applicant counts per drive
     results = []
     for d in drives:
         d_id = str(d["_id"])
         d["id"] = d_id
         
-        # Count applicants
         applicant_count = await db.applications.count_documents({"drive_id": d_id})
         d["total_applicants"] = applicant_count
         
-        # Student specific calculations
         if student_profile:
             eligibility_res = check_student_eligibility(student_profile, d.get("eligibility_criteria", {}))
             d["user_eligibility"] = eligibility_res
@@ -58,14 +56,19 @@ async def list_drives(
 @router.post("/", response_model=DriveResponse)
 async def create_drive(
     drive_in: DriveCreate,
-    current_user: dict = Depends(require_roles(["tpo", "admin", "recruiter"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "RECRUITER", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     drive_dict = drive_in.dict()
     drive_dict["created_by"] = current_user["id"]
     drive_dict["created_at"] = datetime.utcnow()
     drive_dict["updated_at"] = datetime.utcnow()
     
+    # Auto-link company_id if company with same name exists
+    company = await db.companies.find_one({"name": drive_in.company_name})
+    if company:
+        drive_dict["company_id"] = str(company["_id"])
+        
     result = await db.drives.insert_one(drive_dict)
     drive_dict["id"] = str(result.inserted_id)
     drive_dict["total_applicants"] = 0
@@ -75,7 +78,7 @@ async def create_drive(
 async def get_drive(
     drive_id: str,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncDatabase = Depends(get_database)
 ):
     try:
         drive = await db.drives.find_one({"_id": ObjectId(drive_id)})
@@ -88,7 +91,7 @@ async def get_drive(
     drive["id"] = str(drive["_id"])
     drive["total_applicants"] = await db.applications.count_documents({"drive_id": drive["id"]})
     
-    if current_user.get("role") == "student":
+    if normalize_role(current_user.get("role")) == AppRole.STUDENT:
         student_profile = await db.students.find_one({"user_id": current_user["id"]})
         if student_profile:
             student_profile["id"] = str(student_profile["_id"])
@@ -103,8 +106,8 @@ async def get_drive(
 async def update_drive(
     drive_id: str,
     drive_in: DriveUpdate,
-    current_user: dict = Depends(require_roles(["tpo", "admin", "recruiter"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "RECRUITER", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     update_data = {k: v for k, v in drive_in.dict(exclude_unset=True).items() if v is not None}
     update_data["updated_at"] = datetime.utcnow()
@@ -129,8 +132,8 @@ async def update_drive(
 @router.delete("/{drive_id}")
 async def delete_drive(
     drive_id: str,
-    current_user: dict = Depends(require_roles(["tpo", "admin"])),
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    current_user: dict = Depends(require_roles(["PLACEMENT_OFFICER", "ADMIN", "tpo"])),
+    db: AsyncDatabase = Depends(get_database)
 ):
     try:
         query = {"_id": ObjectId(drive_id)}
@@ -141,6 +144,5 @@ async def delete_drive(
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Drive not found")
         
-    # Also delete associated applications
     await db.applications.delete_many({"drive_id": drive_id})
     return {"message": "Drive and its applications successfully removed."}

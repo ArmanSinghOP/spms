@@ -1,4 +1,28 @@
-export type UserRole = 'student' | 'tpo' | 'admin' | 'recruiter';
+export type UserRole = 
+  | 'STUDENT' 
+  | 'PLACEMENT_OFFICER' 
+  | 'RECRUITER' 
+  | 'ADMIN'
+  | 'student' 
+  | 'tpo' 
+  | 'admin' 
+  | 'recruiter';
+
+export interface Company {
+  id: string;
+  name: string;
+  industry: string;
+  website?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  tier: string;
+  location: string;
+  description?: string;
+  active_drives_count: number;
+  total_hires_count: number;
+  created_at: string;
+  updated_at?: string;
+}
 
 export interface User {
   id: string;

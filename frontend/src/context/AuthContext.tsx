@@ -7,7 +7,7 @@ interface AuthContextType {
   studentProfile: StudentProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  loginDemo: (roleKey: 'tpo' | 'arjun' | 'priya' | 'rohit' | 'recruiter') => Promise<void>;
+  loginDemo: (roleKey: 'tpo' | 'admin' | 'arjun' | 'priya' | 'rohit' | 'recruiter') => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<void>;
@@ -53,7 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await api.login({ email, password });
       api.setToken(res.access_token);
       setUser(res.user);
-      if (res.user.role === 'student') {
+      const isStudent = res.user.role.toUpperCase() === 'STUDENT';
+      if (isStudent) {
         try {
           const prof = await api.getMyStudentProfile();
           setStudentProfile(prof);
@@ -66,9 +67,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginDemo = async (roleKey: 'tpo' | 'arjun' | 'priya' | 'rohit' | 'recruiter') => {
+  const loginDemo = async (roleKey: 'tpo' | 'admin' | 'arjun' | 'priya' | 'rohit' | 'recruiter') => {
     const credentialsMap = {
       tpo: { email: 'tpo@kiet.edu', pass: 'Admin@123' },
+      admin: { email: 'admin@kiet.edu', pass: 'Admin@123' },
       arjun: { email: 'arjun.sharma@kiet.edu', pass: 'Student@123' },
       priya: { email: 'priya.verma@kiet.edu', pass: 'Student@123' },
       rohit: { email: 'rohit.singh@kiet.edu', pass: 'Student@123' },

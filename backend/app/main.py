@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 import os
 import logging
 
@@ -12,6 +13,17 @@ from app.api.v1.api import api_router
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("spms")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI Modern Lifespan Manager for Database and Seeder Lifecycle"""
+    logger.info("Starting SPMS Application lifespan (PyMongo Async Engine)...")
+    db = await connect_to_mongo()
+    await seed_initial_data(db)
+    logger.info("SPMS initialization completed successfully.")
+    yield
+    logger.info("Executing SPMS graceful shutdown...")
+    await close_mongo_connection()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -19,6 +31,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
+    lifespan=lifespan
 )
 
 # CORS Middleware
@@ -34,27 +47,16 @@ app.add_middleware(
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
-# Lifecycle events
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Initializing SPMS FastAPI application...")
-    await connect_to_mongo()
-    db = get_database()
-    await seed_initial_data(db)
-    logger.info("SPMS Application startup complete.")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down SPMS application...")
-    await close_mongo_connection()
-
 # Health check
+@app.get("/", tags=["Health"])
+@app.get("/health", tags=["Health"])
 @app.get("/api/health", tags=["Health"])
 async def health_check():
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "database_engine": "PyMongo Async API",
         "database": "connected"
     }
 
