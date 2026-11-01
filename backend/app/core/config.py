@@ -7,8 +7,11 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # Database
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    # Database (MongoDB Atlas)
+    MONGODB_URL: str = os.getenv(
+        "MONGODB_URL", 
+        "mongodb+srv://spms_app_user:[REDACTED_SECRET]@spms-cluster.wvdtyx7.mongodb.net/?retryWrites=true&w=majority"
+    )
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "spms_db")
     
     # Security
